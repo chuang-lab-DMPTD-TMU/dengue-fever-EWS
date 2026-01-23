@@ -1,16 +1,22 @@
 ---
-title: "Chuang Lab TMU"
+title: "Chuang Lab @ TMU"
 ---
 
-# Welcome to Chuang Lab TMU
 
-The Chuang Lab at TMU focuses on **[brief description of your research focus]**.  
-Our goal is to explore cutting-edge research in **[fields/topics]** and make our data, tools, and analyses accessible to the scientific community.
+The Chuang Lab at Department of Molecular Parasitology and Tropical Diseases focuses on **modelling of climate change's impact on dengue fever epidemiology via machine learning and deep learning**. We build upon open source software and datasets to ensure reproducible experiments.  
 
-## Our Research Modules
+## Principle Investigator
 
-We have several active projects:
+Ting-Wu Chuang
 
+- **Professor, Department of Molecular Parasitology and Tropical Diseases**
+- **Joint-Appointment Professor, International Master/Ph.D. Program in Medicine**
+- **Joint-Appointment Professor, Master Program in Applied Epidemiology**
+- **Joint-Appointment Professor, Ph.D. Program in Global Health and Health Security**
+- **Joint-Appointment Professor, School of Public Health**
+
+
+## Ongoing Projects
 - **Module 1:** Data preprocessing and curation  
 - **Module 2:** Statistical analysis and modeling  
 - **Module 3:** Visualization and dashboards  

@@ -1,5 +1,11 @@
 project:
   type: website
+  output-dir: site
+
+execute:
+  freeze: auto   # important for reproducibility
+
+site-url: "https://patwuch.github.io/Chuang_Lab_TMU/"
 
 website:
   title: "Chuang Lab TMU"
@@ -10,10 +16,10 @@ website:
       - text: "Home"
         href: index.qmd
       - text: "Dengue Infection Data Module"
-        href: module1/docs/index.qmd
+        href: dengue-infection-module/report/index.qmd
       - text: "Shared Socioeconomic Pathways Module"
-        href: module2/docs/index.qmd
+        href: climate-projection-module/report/index.qmd
       - text: "Zonal Statistics Earth Observation Module"
-        href: module3/docs/index.qmd
+        href: zonal-statistics-module/report/index.qmd
       - text: "Machine Learning Epidemiology Prediction Module"
-        href: module4/docs/index.qmd
+        href: machine-learning-module/report/index.qmd
