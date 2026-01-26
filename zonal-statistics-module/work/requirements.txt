@@ -1,0 +1,6 @@
+geemap==0.32.0
+tk==0.1.0
+ipykernel==6.29.5
+pydantic==2.5.3
+pydantic-settings==2.1.0
+PyCRS==1.0.2

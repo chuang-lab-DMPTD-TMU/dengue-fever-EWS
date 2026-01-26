@@ -5,21 +5,19 @@
 *.csv
 *.sav
 *.nc
-climate-projection-module/work
-zonal-statistics-module/work
-dengue-infection-module/work
-machine-learning-module/work
+climate-projection-module/main
+zonal-statistics-module/main
+dengue-infection-module/main
+machine-learning-module/main
 
-# Ignore legacy projects
-others/
 
 # Snakemake
 .snakemake/
 **/.snakemake/
-climate-projection-module/main/.snakemake/
-dengue-infection-module/main/.snakemake/
-zonal-statistics-module/main/.snakemake/
-machine-learning-module/main/.snakemake/
+climate-projection-module/workflow/.snakemake/
+dengue-infection-module/workflow/.snakemake/
+zonal-statistics-module/workflow/.snakemake/
+machine-learning-module/workflow/.snakemake/
 
 
 # Conda / environments

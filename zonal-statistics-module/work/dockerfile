@@ -1,0 +1,21 @@
+FROM continuumio/miniconda3:latest
+
+WORKDIR /app
+COPY . /app
+COPY new_requirements.txt /app/
+
+# Debug step to verify script is copied
+RUN ls -al /app
+
+
+# Ensure script is executable
+RUN chmod +x /app/start_notebook.sh
+
+# Set up Conda environment properly
+RUN conda create -n myenv python=3.10 && \
+    conda run -n myenv python --version && \
+    conda run -n myenv pip install -r /app/new_requirements.txt && \
+    conda run -n myenv conda install -c conda-forge jupyter
+
+# Ensure conda is initialized and activate environment in CMD
+CMD ["/bin/bash", "-c", "source /opt/conda/etc/profile.d/conda.sh && conda activate myenv && /app/start_notebook.sh"]
