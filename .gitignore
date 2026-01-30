@@ -17,6 +17,7 @@
 climate-projection-module/main
 zonal-statistics-module/main
 dengue-infection-module/main
+dengue-infection-module/report
 machine-learning-module/main
 
 
