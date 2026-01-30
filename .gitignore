@@ -1,10 +1,19 @@
-# Ignore all work folders (folders containing data)
+# Ignore all data files
 
 *.log
 *.tmp
 *.csv
 *.sav
 *.nc
+*.shp
+*.json
+*.zip
+*.geojson
+*.parquet
+*.pdf
+*.dbf
+
+
 climate-projection-module/main
 zonal-statistics-module/main
 dengue-infection-module/main
