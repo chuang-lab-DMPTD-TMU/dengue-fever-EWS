@@ -15,10 +15,12 @@
 
 
 climate-projection-module/main
+climate-projection-module/report
 zonal-statistics-module/main
 dengue-infection-module/main
 dengue-infection-module/report
 machine-learning-module/main
+machine-learning-module/report
 
 
 # Snakemake

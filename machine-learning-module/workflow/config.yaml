@@ -1,0 +1,25 @@
+# STGNN local training config (CUDA + W&B)
+# Edit these paths to match your prepared data and scripts.
+
+data_dir: ../main/data/processed
+model_dir: models/stgnn
+report_dir: reports/stgnn
+script_dir: scripts
+
+run_name: stgnn_local_cuda
+seed: 42
+epochs: 100
+batch_size: 64
+learning_rate: 0.001
+
+cuda_visible_devices: "0"
+
+wandb_project: stgnn-local
+wandb_entity: ""
+wandb_mode: online  # online | offline | disabled
+
+# Use explicit files if your dataset filenames differ:
+train_data: ../main/data/processed/train.parquet
+val_data: ../main/data/processed/val.parquet
+test_data: ../main/data/processed/test.parquet
+graph_file: ../main/data/processed/graph.pkl

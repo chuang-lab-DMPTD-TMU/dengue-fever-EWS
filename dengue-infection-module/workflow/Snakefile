@@ -1,14 +1,52 @@
 from pathlib import Path
-import glob
+
+import dask.dataframe as dd
 import pandas as pd
-import numpy as np
-from collections import defaultdict
-from snakemake.io import directory
-import os
-
-######## RUN THIS TO CREATE DAG ########
-# snakemake --cores 4 --dag 2>/dev/null | grep -v "Including" | dot -Tpdf > dag.pdf
-########################################
-
 
 configfile: "config.yaml"
+
+def find_git_root(start: Path) -> Path:
+    for path in (start,) + tuple(start.parents):
+        if (path / ".git").exists():
+            return path
+    return start
+
+PROJECT_ROOT = find_git_root(Path.cwd().resolve())
+PIPELINE_ROOT = PROJECT_ROOT / "dengue-infection-module"
+RAW_DIR = PIPELINE_ROOT / Path(config["raw_dir"])
+OUTPUT_DIR = PIPELINE_ROOT / Path(config["output_dir"])
+DATASETS = {
+    name: RAW_DIR / Path(filename)
+    for name, filename in config["datasets"].items()
+}
+START_YEAR = int(config["start_year"])
+END_YEAR = int(config["end_year"])
+TARGET_REGIONS_ORDERED = tuple(config["target_who_regions"])
+TARGET_REGION_SET = set(TARGET_REGIONS_ORDERED)
+REGION_SUFFIX = "_".join(TARGET_REGIONS_ORDERED)
+SUFFIX = f"{REGION_SUFFIX}_{START_YEAR}_{END_YEAR}"
+OUT_PATTERN = f"{{dataset}}_{SUFFIX}.csv"
+
+# Rule 1: Training (Heavy Lift)
+# Snakefile
+rule train_dengue_model:
+    input:
+        features = "data/processed_features.pt",
+        adjacency = "data/city_graph_edges.pt"
+    output:
+        model_checkpoints = "models/st_gnn_final.pth"
+    params:
+        epochs = 100,
+        lr = 0.001,
+        hidden_dim = 64
+    script:
+        "scripts/train_stgat.py" # Snakemake calls this script
+
+# Rule 2: Interpretation (Fast/Iterative)
+rule explain_model:
+    input: 
+        model = "models/dengue_model.pth",
+        run_id = "models/run_id.txt",
+        data = "data/features.pt"
+    output: "plots/attribution_heatmap.png"
+    script: "scripts/explain.py"

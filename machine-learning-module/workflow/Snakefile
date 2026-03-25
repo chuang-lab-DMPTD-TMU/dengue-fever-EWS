@@ -1,0 +1,144 @@
+configfile: "config.yaml"
+
+# -----------------------------
+# STGNN + CUDA + W&B template
+# -----------------------------
+# Usage examples:
+#   snakemake --cores 8
+#   snakemake --cores 8 --config cuda_visible_devices=0 wandb_project=my-project
+#
+# Default values are loaded from workflow/config.yaml.
+# Override any value with --config KEY=VALUE at runtime.
+
+
+DATA_DIR = config.get("data_dir", "data/processed")
+MODEL_DIR = config.get("model_dir", "models/stgnn")
+REPORT_DIR = config.get("report_dir", "reports/stgnn")
+SCRIPT_DIR = config.get("script_dir", "scripts")
+
+RUN_NAME = config.get("run_name", "stgnn_local_cuda")
+SEED = config.get("seed", 42)
+EPOCHS = config.get("epochs", 100)
+BATCH_SIZE = config.get("batch_size", 64)
+LEARNING_RATE = config.get("learning_rate", 1e-3)
+
+CUDA_VISIBLE_DEVICES = str(config.get("cuda_visible_devices", "0"))
+
+WANDB_PROJECT = config.get("wandb_project", "stgnn-local")
+WANDB_ENTITY = config.get("wandb_entity", "")
+WANDB_MODE = config.get("wandb_mode", "online")  # online | offline | disabled
+
+# Input placeholders (adapt to your data pipeline)
+TRAIN_DATA = config.get("train_data", f"{DATA_DIR}/train.parquet")
+VAL_DATA = config.get("val_data", f"{DATA_DIR}/val.parquet")
+TEST_DATA = config.get("test_data", f"{DATA_DIR}/test.parquet")
+GRAPH_FILE = config.get("graph_file", f"{DATA_DIR}/graph.pkl")
+
+CHECKPOINT = f"{MODEL_DIR}/{RUN_NAME}/best.pt"
+TRAIN_METRICS = f"{REPORT_DIR}/{RUN_NAME}/train_metrics.json"
+EVAL_METRICS = f"{REPORT_DIR}/{RUN_NAME}/test_metrics.json"
+
+
+rule all:
+	input:
+		CHECKPOINT,
+		TRAIN_METRICS,
+		EVAL_METRICS
+
+
+rule train_stgnn:
+	input:
+		train_data=TRAIN_DATA,
+		val_data=VAL_DATA,
+		graph=GRAPH_FILE
+	output:
+		checkpoint=CHECKPOINT,
+		metrics=TRAIN_METRICS
+	params:
+		script=f"{SCRIPT_DIR}/train_stgnn.py",
+		run_name=RUN_NAME,
+		seed=SEED,
+		epochs=EPOCHS,
+		batch_size=BATCH_SIZE,
+		lr=LEARNING_RATE,
+		cuda_visible_devices=CUDA_VISIBLE_DEVICES,
+		wandb_project=WANDB_PROJECT,
+		wandb_entity=WANDB_ENTITY,
+		wandb_mode=WANDB_MODE
+	threads: 8
+	resources:
+		gpu=1,
+		mem_mb=32000
+	log:
+		f"logs/{RUN_NAME}/train.log"
+	conda:
+		"envs/stgnn_cuda.yaml"
+	shell:
+		r"""
+		set -euo pipefail
+		mkdir -p "$(dirname {output.checkpoint})" "$(dirname {output.metrics})" "$(dirname {log})"
+
+		export CUDA_VISIBLE_DEVICES="{params.cuda_visible_devices}"
+		export WANDB_PROJECT="{params.wandb_project}"
+		export WANDB_ENTITY="{params.wandb_entity}"
+		export WANDB_MODE="{params.wandb_mode}"
+
+		python "{params.script}" \
+		  --train-data "{input.train_data}" \
+		  --val-data "{input.val_data}" \
+		  --graph "{input.graph}" \
+		  --output-checkpoint "{output.checkpoint}" \
+		  --output-metrics "{output.metrics}" \
+		  --run-name "{params.run_name}" \
+		  --seed {params.seed} \
+		  --epochs {params.epochs} \
+		  --batch-size {params.batch_size} \
+		  --learning-rate {params.lr} \
+		  --device cuda \
+		  --use-wandb \
+		  > "{log}" 2>&1
+		"""
+
+
+rule evaluate_stgnn:
+	input:
+		checkpoint=CHECKPOINT,
+		test_data=TEST_DATA,
+		graph=GRAPH_FILE
+	output:
+		metrics=EVAL_METRICS
+	params:
+		script=f"{SCRIPT_DIR}/evaluate_stgnn.py",
+		run_name=RUN_NAME,
+		cuda_visible_devices=CUDA_VISIBLE_DEVICES,
+		wandb_project=WANDB_PROJECT,
+		wandb_entity=WANDB_ENTITY,
+		wandb_mode=WANDB_MODE
+	threads: 4
+	resources:
+		gpu=1,
+		mem_mb=16000
+	log:
+		f"logs/{RUN_NAME}/eval.log"
+	conda:
+		"envs/stgnn_cuda.yaml"
+	shell:
+		r"""
+		set -euo pipefail
+		mkdir -p "$(dirname {output.metrics})" "$(dirname {log})"
+
+		export CUDA_VISIBLE_DEVICES="{params.cuda_visible_devices}"
+		export WANDB_PROJECT="{params.wandb_project}"
+		export WANDB_ENTITY="{params.wandb_entity}"
+		export WANDB_MODE="{params.wandb_mode}"
+
+		python "{params.script}" \
+		  --checkpoint "{input.checkpoint}" \
+		  --test-data "{input.test_data}" \
+		  --graph "{input.graph}" \
+		  --output-metrics "{output.metrics}" \
+		  --run-name "{params.run_name}" \
+		  --device cuda \
+		  --use-wandb \
+		  > "{log}" 2>&1
+		"""
