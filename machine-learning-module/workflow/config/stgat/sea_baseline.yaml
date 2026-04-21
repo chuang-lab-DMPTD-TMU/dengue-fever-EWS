@@ -1,0 +1,254 @@
+# ============================================================
+# Spatiotemporal Graph Attention Network (STGAT) Configuration
+# ============================================================
+# Architecture:  GAT (spatial) → GRU (temporal) → Linear (output)
+# Task:          Node-level dengue incidence rate regression across SEA cities
+#
+# Dataset : SEA_dengue_env_monthly_2011-2018.csv
+# Nodes   : 165 admin-2 units across 10 SEA countries
+# Time    : 2011-01 → 2018-12  (96 months)
+# Target  : IR (incidence rate, continuous)
+# Missing : ~10.8% of IR values absent — handled by masked loss
+# ============================================================
+
+
+# ---------------------------------------------------------------------------
+# Pipeline / experiment identity
+# ---------------------------------------------------------------------------
+arch:       stgat
+version:    "0001"
+experiment: "sea-baseline"
+run_name:   "sea_baseline"
+
+
+wandb:
+  enabled: true
+  api_key_file: "wandb/api-key/wandb_api.txt"
+  project: "sea_baseline"
+
+
+# ---------------------------------------------------------------------------
+# Data paths (relative to project root)
+# ---------------------------------------------------------------------------
+paths:
+  data_processed:   "machine-learning-module/main/data/processed/SEA_dengue_env_monthly_2011-2018.csv"
+  tensors_dir:      "data/processed/stgat"
+  models_dir:       "models/stgat"
+  tables_dir:       "reports/tables"
+  figures_dir:      "reports/figures"
+
+
+# ---------------------------------------------------------------------------
+# Column mapping
+# Preprocessing scripts use these to locate the right columns in the CSV.
+# ---------------------------------------------------------------------------
+data:
+  node_id_column: name        # 165 unique admin-2 region names
+  date_column:    Date        # format: YYYY-MM-DD
+  admin_column:   admin       # country name (used for graph filtering if needed)
+
+
+# ---------------------------------------------------------------------------
+# Graph construction
+# ---------------------------------------------------------------------------
+graph:
+  method: fully_connected   # GAT attention learns spatial relations; no coordinates needed
+
+  node_id_column: name
+
+
+# ---------------------------------------------------------------------------
+# Sequence settings
+# ---------------------------------------------------------------------------
+# 96 months total; 84 train (2011-2017), 12 test (2018).
+# Lookback of 12 gives ~72 training sequences — sufficient with 165 nodes.
+sequence:
+  lookback_steps: 12    # months of history per input window
+  target_horizon:  1    # months ahead to predict
+  stride:          1
+
+
+# ---------------------------------------------------------------------------
+# Feature groups
+# ---------------------------------------------------------------------------
+features:
+  env_vars:
+    - precipitation_sum
+    - total_precipitation_sum_mean
+    - temperature_2m_mean
+    - temperature_2m_max_mean
+    - temperature_2m_min_mean
+    - potential_evaporation_sum_mean
+    - total_evaporation_sum_mean
+    - evaporation_from_bare_soil_sum_mean
+    - evaporation_from_open_water_surfaces_excluding_oceans_sum_mean
+    - evaporation_from_the_top_of_canopy_sum_mean
+    - evaporation_from_vegetation_transpiration_sum_mean
+    - LST_Day_1km_mean
+    - LST_Night_1km_mean
+    - NDVI_mean
+    - EVI_mean
+
+  climate_vars: []          # no ENSO/IOD indices in this dataset
+
+  land_use_vars:
+    - LC_Type1_pct_class1
+    - LC_Type1_pct_class2
+    - LC_Type1_pct_class3
+    - LC_Type1_pct_class4
+    - LC_Type1_pct_class5
+    - LC_Type1_pct_class6
+    - LC_Type1_pct_class7
+    - LC_Type1_pct_class8
+    - LC_Type1_pct_class9
+    - LC_Type1_pct_class10
+    - LC_Type1_pct_class11
+    - LC_Type1_pct_class12
+    - LC_Type1_pct_class13
+    - LC_Type1_pct_class14
+    - LC_Type1_pct_class15
+    - LC_Type1_pct_class16
+    - LC_Type1_pct_class17
+
+  epidemic_vars:
+    - IR_lag1               # created during preprocessing (shift IR by 1 month per node)
+
+  population_vars:
+    - population_sum
+
+  lag_steps: [1, 2, 3]     # lags applied to env_vars during preprocessing
+  use_landuse: true
+  use_epidemic_lag: true
+
+  scaling: standard         # fit on train, apply to val/test
+
+
+# ---------------------------------------------------------------------------
+# Target
+# ---------------------------------------------------------------------------
+target:
+  task:         regression
+  column:       IR           # continuous incidence rate per 100k
+
+  log_transform: true        # log1p(IR) before training; exp-transform predictions
+
+  # Nodes with missing IR are excluded from the loss but still contribute
+  # spatial context via the GAT layers.
+  mask_missing:    true
+  missing_sentinel: null     # NaN values in IR are treated as missing
+
+
+# ---------------------------------------------------------------------------
+# Train / validation / test split
+# ---------------------------------------------------------------------------
+split:
+  test_year:    2018         # 2018 (12 months) held out as final test
+  val_fraction: 0.15         # most-recent 15% of training sequences → validation
+
+
+# ---------------------------------------------------------------------------
+# Model architecture
+# ---------------------------------------------------------------------------
+model:
+  gat:
+    num_layers: 2
+    hidden_dim: 64
+    heads: [4, 1]
+    dropout: 0.2
+    residual: true
+    activation: elu
+
+  gru:
+    num_layers: 1
+    hidden_dim: 64
+    dropout: 0.0
+    bidirectional: false
+
+  projection:
+    enabled: false
+    dim: 64
+
+  output:
+    hidden_dim: 32
+    dropout: 0.1
+
+
+# ---------------------------------------------------------------------------
+# Training regime
+# ---------------------------------------------------------------------------
+training:
+  epochs:        200
+  learning_rate: 1.0e-3
+  weight_decay:  1.0e-4
+  gradient_clip: 1.0
+
+  optimizer: adam
+
+  scheduler:
+    type: plateau
+    plateau:
+      patience:  10
+      factor:    0.5
+      min_lr:    1.0e-6
+    cosine:
+      t_max:     50
+      eta_min:   1.0e-6
+    step:
+      step_size: 30
+      gamma:     0.5
+
+  early_stopping:
+    patience:   25
+    min_delta:  1.0e-4
+    monitor:    val_loss
+
+  random_state: 64
+
+
+# ---------------------------------------------------------------------------
+# Loss function
+# ---------------------------------------------------------------------------
+loss:
+  regression:
+    type: masked_mse
+    huber_delta: 1.0
+
+  classification:
+    type: cross_entropy
+    focal_gamma: 2.0
+    class_weights: balanced
+
+
+# ---------------------------------------------------------------------------
+# Weights & Biases
+# ---------------------------------------------------------------------------
+wandb:
+  enabled: false
+  project: "dengue-ml"
+  entity:  null
+  tags:    ["stgat", "sea"]
+  log_gradients: false
+  log_graph:     false
+
+  sweep_config:
+    method: bayes
+    metric:
+      name: val_loss
+      goal: minimize
+    parameters:
+      learning_rate:
+        distribution: log_uniform_values
+        min: 1.0e-4
+        max: 1.0e-2
+      gat_hidden_dim:
+        values: [32, 64, 128]
+      gat_heads_first_layer:
+        values: [2, 4, 8]
+      gru_hidden_dim:
+        values: [32, 64, 128]
+      dropout:
+        values: [0.1, 0.2, 0.3]
+      weight_decay:
+        distribution: log_uniform_values
+        min: 1.0e-5
+        max: 1.0e-3

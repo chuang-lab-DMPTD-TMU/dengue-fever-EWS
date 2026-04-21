@@ -2,8 +2,7 @@ import geopandas as gpd
 import pandas as pd
 
 SHP_PATH = (
-    "/home/patwuch/Documents/projects/Chuang-Lab-TMU"
-    "/dengue-infection-module/main/external/FAO_GAUL_shp/GAUL_2024_L2.shp"
+    "/home/patwuch/Documents/projects/Chuang-Lab-TMU/dengue-infection-module/main/external/FAO_GAUL_shp"
 )
 CSV_PATH = (
     "/home/patwuch/Documents/projects/Chuang-Lab-TMU"

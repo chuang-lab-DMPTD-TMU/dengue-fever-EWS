@@ -1,144 +1,127 @@
-configfile: "config.yaml"
-
-# -----------------------------
-# STGNN + CUDA + W&B template
-# -----------------------------
-# Usage examples:
-#   snakemake --cores 8
-#   snakemake --cores 8 --config cuda_visible_devices=0 wandb_project=my-project
+# ============================================================
+# Snakemake Workflow — Dengue ML Pipeline (per-region, multi-arch)
+# ============================================================
+# Usage:
+#   # Run full pipeline (tune → train → evaluate → aggregate):
+#   snakemake --cores 8 --resources gpu=1
 #
-# Default values are loaded from workflow/config.yaml.
-# Override any value with --config KEY=VALUE at runtime.
+#   # Also run SHAP/XAI after the main pipeline:
+#   snakemake all_xai --cores 8 --resources gpu=1
+#
+#   # Use a different config:
+#   snakemake --cores 8 --configfile config/my_config.yaml
+#
+# Pipeline per (study, region) — defined in rules/xgboost.smk / rules/RF.smk:
+#   [checkpoint] discover_regions
+#       → tune  →  train  →  evaluate  →  aggregate_results
+#
+#   STGAT pipeline — defined in rules/stgat.smk:
+#       tune_stgat  →  train_stgat  →  eval_stgat
+#
+#   XAI (opt-in via `snakemake all_xai`) — defined in rules/XAI.smk:
+#       train + evaluate → shap_analysis
+#
+# Adding a new run:
+#   Add an entry to config["runs"] with at minimum:
+#     arch, version
+#   XGBoost runs also use: validation, landuse
+#   Optional per-run overrides: data, hyperparams
+# ============================================================
+
+configfile: "config/config.yaml"
+
+include: "rules/xgboost.smk"
+include: "rules/RF.smk"
+include: "rules/stgat.smk"
+include: "rules/XAI.smk"
+include: "rules/IG.smk"
 
 
-DATA_DIR = config.get("data_dir", "data/processed")
-MODEL_DIR = config.get("model_dir", "models/stgnn")
-REPORT_DIR = config.get("report_dir", "reports/stgnn")
-SCRIPT_DIR = config.get("script_dir", "scripts")
+# ---------------------------------------------------------------------------
+# Shared helpers — used by input functions across included rule files
+# ---------------------------------------------------------------------------
 
-RUN_NAME = config.get("run_name", "stgnn_local_cuda")
-SEED = config.get("seed", 42)
-EPOCHS = config.get("epochs", 100)
-BATCH_SIZE = config.get("batch_size", 64)
-LEARNING_RATE = config.get("learning_rate", 1e-3)
+def _landuse_suffix(run):
+    return "lulc" if run.get("landuse") == "t" else ""
 
-CUDA_VISIBLE_DEVICES = str(config.get("cuda_visible_devices", "0"))
+def _validation_strategy(run):
+    return "kfold" if run.get("validation") == "k" else "walk"
 
-WANDB_PROJECT = config.get("wandb_project", "stgnn-local")
-WANDB_ENTITY = config.get("wandb_entity", "")
-WANDB_MODE = config.get("wandb_mode", "online")  # online | offline | disabled
+def _study_name(run):
+    """
+    Unique identifier for a run, used as the {study} wildcard throughout.
+    Format: {arch}-{validation}-{landuse_suffix}-{version}
+    Parts that are empty (e.g. no landuse suffix) are dropped.
+    """
+    arch = run.get("arch", "xgbC")
+    parts = [arch, _validation_strategy(run), _landuse_suffix(run), run["version"]]
+    return "-".join(p for p in parts if p)
 
-# Input placeholders (adapt to your data pipeline)
-TRAIN_DATA = config.get("train_data", f"{DATA_DIR}/train.parquet")
-VAL_DATA = config.get("val_data", f"{DATA_DIR}/val.parquet")
-TEST_DATA = config.get("test_data", f"{DATA_DIR}/test.parquet")
-GRAPH_FILE = config.get("graph_file", f"{DATA_DIR}/graph.pkl")
+def _run_for_study(study_str):
+    """Reverse-lookup: study string → run config dict."""
+    return next(r for r in config["runs"] if _study_name(r) == study_str)
 
-CHECKPOINT = f"{MODEL_DIR}/{RUN_NAME}/best.pt"
-TRAIN_METRICS = f"{REPORT_DIR}/{RUN_NAME}/train_metrics.json"
-EVAL_METRICS = f"{REPORT_DIR}/{RUN_NAME}/test_metrics.json"
+def _all_studies():
+    return [_study_name(r) for r in config["runs"]]
 
+def _all_experiments():
+    """Return distinct experiment names across all runs that have the field set."""
+    return list({r["experiment"] for r in config["runs"] if "experiment" in r})
+
+def _studies_for_experiment(experiment_name):
+    """All study names that belong to a given experiment."""
+    return [
+        _study_name(r) for r in config["runs"]
+        if r.get("experiment") == experiment_name
+    ]
+
+def _regions_for_study(wc):
+    """Read the checkpoint output and return the list of region strings."""
+    regions_file = checkpoints.discover_regions.get(study=wc.study).output.region_list
+    with open(regions_file) as fh:
+        return [line.strip() for line in fh if line.strip()]
+
+
+# ---------------------------------------------------------------------------
+# rule all — core pipeline targets (no XAI)
+# Run `snakemake all_xai` to also produce SHAP outputs.
+# ---------------------------------------------------------------------------
 
 rule all:
-	input:
-		CHECKPOINT,
-		TRAIN_METRICS,
-		EVAL_METRICS
+    default_target: True
+    input:
+        expand(
+            "reports/tables/{study}_national_results.csv",
+            study = _all_studies()
+        ),
+        expand(
+            "reports/tables/{experiment}_comparison.csv",
+            experiment = _all_experiments()
+        )
 
 
-rule train_stgnn:
-	input:
-		train_data=TRAIN_DATA,
-		val_data=VAL_DATA,
-		graph=GRAPH_FILE
-	output:
-		checkpoint=CHECKPOINT,
-		metrics=TRAIN_METRICS
-	params:
-		script=f"{SCRIPT_DIR}/train_stgnn.py",
-		run_name=RUN_NAME,
-		seed=SEED,
-		epochs=EPOCHS,
-		batch_size=BATCH_SIZE,
-		lr=LEARNING_RATE,
-		cuda_visible_devices=CUDA_VISIBLE_DEVICES,
-		wandb_project=WANDB_PROJECT,
-		wandb_entity=WANDB_ENTITY,
-		wandb_mode=WANDB_MODE
-	threads: 8
-	resources:
-		gpu=1,
-		mem_mb=32000
-	log:
-		f"logs/{RUN_NAME}/train.log"
-	conda:
-		"envs/stgnn_cuda.yaml"
-	shell:
-		r"""
-		set -euo pipefail
-		mkdir -p "$(dirname {output.checkpoint})" "$(dirname {output.metrics})" "$(dirname {log})"
+# ---------------------------------------------------------------------------
+# rule all_xai — opt-in target that also runs SHAP for every study/region
+# ---------------------------------------------------------------------------
 
-		export CUDA_VISIBLE_DEVICES="{params.cuda_visible_devices}"
-		export WANDB_PROJECT="{params.wandb_project}"
-		export WANDB_ENTITY="{params.wandb_entity}"
-		export WANDB_MODE="{params.wandb_mode}"
-
-		python "{params.script}" \
-		  --train-data "{input.train_data}" \
-		  --val-data "{input.val_data}" \
-		  --graph "{input.graph}" \
-		  --output-checkpoint "{output.checkpoint}" \
-		  --output-metrics "{output.metrics}" \
-		  --run-name "{params.run_name}" \
-		  --seed {params.seed} \
-		  --epochs {params.epochs} \
-		  --batch-size {params.batch_size} \
-		  --learning-rate {params.lr} \
-		  --device cuda \
-		  --use-wandb \
-		  > "{log}" 2>&1
-		"""
+def _all_shap_flags(wildcards):
+    """Input function so Snakemake waits for the checkpoint before expanding."""
+    flags = []
+    for study in _all_studies():
+        wc = type("W", (), {"study": study})()
+        for region in _regions_for_study(wc):
+            flags.append(f".snakemake/flags/{study}/{region}_shap.done")
+    return flags
 
 
-rule evaluate_stgnn:
-	input:
-		checkpoint=CHECKPOINT,
-		test_data=TEST_DATA,
-		graph=GRAPH_FILE
-	output:
-		metrics=EVAL_METRICS
-	params:
-		script=f"{SCRIPT_DIR}/evaluate_stgnn.py",
-		run_name=RUN_NAME,
-		cuda_visible_devices=CUDA_VISIBLE_DEVICES,
-		wandb_project=WANDB_PROJECT,
-		wandb_entity=WANDB_ENTITY,
-		wandb_mode=WANDB_MODE
-	threads: 4
-	resources:
-		gpu=1,
-		mem_mb=16000
-	log:
-		f"logs/{RUN_NAME}/eval.log"
-	conda:
-		"envs/stgnn_cuda.yaml"
-	shell:
-		r"""
-		set -euo pipefail
-		mkdir -p "$(dirname {output.metrics})" "$(dirname {log})"
-
-		export CUDA_VISIBLE_DEVICES="{params.cuda_visible_devices}"
-		export WANDB_PROJECT="{params.wandb_project}"
-		export WANDB_ENTITY="{params.wandb_entity}"
-		export WANDB_MODE="{params.wandb_mode}"
-
-		python "{params.script}" \
-		  --checkpoint "{input.checkpoint}" \
-		  --test-data "{input.test_data}" \
-		  --graph "{input.graph}" \
-		  --output-metrics "{output.metrics}" \
-		  --run-name "{params.run_name}" \
-		  --device cuda \
-		  --use-wandb \
-		  > "{log}" 2>&1
-		"""
+rule all_xai:
+    input:
+        expand(
+            "reports/tables/{study}_national_results.csv",
+            study = _all_studies()
+        ),
+        expand(
+            "reports/tables/{experiment}_comparison.csv",
+            experiment = _all_experiments()
+        ),
+        _all_shap_flags

@@ -11,7 +11,12 @@
 *.geojson
 *.parquet
 *.pdf
+*.pt
+*.db
 *.dbf
+*.pkl
+*.pyc
+
 
 
 climate-projection-module/main
@@ -21,7 +26,7 @@ dengue-infection-module/main
 dengue-infection-module/report
 machine-learning-module/main
 machine-learning-module/report
-
+machine-learning-module/workflow/wandb/api-key
 
 # Snakemake
 .snakemake/

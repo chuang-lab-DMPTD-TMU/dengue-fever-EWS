@@ -5,6 +5,9 @@ OUTPUT_PATH = "/home/patwuch/Documents/projects/Chuang-Lab-TMU/dengue-infection-
 
 df = pd.read_csv(INPUT_PATH)
 
+# Fix: ensure name columns are object dtype, not float64 (happens when all-NaN on read)
+for col in ["adm_1_name", "adm_2_name"]:
+    df[col] = df[col].astype(object)
 
 mask = df["adm_0_name"].isin([
     "SINGAPORE",
@@ -18,6 +21,43 @@ df.loc[mask, "adm_2_name"] = df.loc[mask, "adm_0_name"]
 
 print(f"Number of unique adm_1_name: {df['adm_1_name'].nunique()}")
 print(f"Unique adm_1_names: {sorted(df['adm_1_name'].dropna().unique())}")
+
+
+# ── Aggregate Admin0/Week → synthetic Admin0/Month for countries that have
+#    Admin1/Year distribution data but no Admin0/Month data (e.g. Malaysia).
+#    These synthetic rows are picked up naturally by the Case 1/2 logic below.
+import calendar as _cal
+
+_adm0_month_countries = set(df.loc[(df["S_res"] == "Admin0") & (df["T_res"] == "Month"), "adm_0_name"])
+_adm1_year_countries  = set(df.loc[(df["S_res"] == "Admin1") & (df["T_res"] == "Year"),  "adm_0_name"])
+_weekly_only = df[
+    (df["S_res"] == "Admin0") &
+    (df["T_res"] == "Week") &
+    (~df["adm_0_name"].isin(_adm0_month_countries)) &
+    (df["adm_0_name"].isin(_adm1_year_countries))
+].copy()
+
+if not _weekly_only.empty:
+    _weekly_only["_month_ts"] = (
+        pd.to_datetime(_weekly_only["calendar_start_date"])
+        .dt.to_period("M").dt.to_timestamp()
+    )
+    _synthetic_rows = []
+    for (country, month_ts), grp in _weekly_only.groupby(["adm_0_name", "_month_ts"]):
+        template = grp.drop(columns=["_month_ts"]).iloc[0].copy()
+        year, month = month_ts.year, month_ts.month
+        last_day = _cal.monthrange(year, month)[1]
+        template["calendar_start_date"] = month_ts.strftime("%Y-%m-%d")
+        template["calendar_end_date"]   = f"{year}-{month:02d}-{last_day:02d}"
+        template["Year"]          = year
+        template["dengue_total"]  = grp["dengue_total"].sum()
+        template["T_res"]         = "Month"
+        template["UUID"]          = f"WEEKLY-AGG-{country.replace(' ', '_')}-{template['calendar_start_date']}"
+        _synthetic_rows.append(template)
+    _synthetic_df = pd.DataFrame(_synthetic_rows)
+    df = pd.concat([df, _synthetic_df], ignore_index=True)
+    print(f"\nAggregated {len(_synthetic_rows)} synthetic Admin0/Month rows from weekly data "
+          f"for: {sorted(_weekly_only['adm_0_name'].unique())}")
 
 
 # Separate the two data types we need
