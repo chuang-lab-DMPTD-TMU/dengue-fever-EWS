@@ -37,9 +37,8 @@ Processes and harmonizes multi-source climate projection data into standardized 
 Aggregates and standardises dengue case data from global and regional sources at fine spatiotemporal resolution.
 
 **Data sources:**
-- **OpenDengue** — Global case counts (WHO regions SEARO, WPRO, EMRO), 2000–2025, admin-0/1/2 levels, weekly and monthly resolution
+- **OpenDengue** — Global case counts (all WHO regions), 2000–2025, admin-0/1/2 levels, weekly and monthly resolution
 - **Indonesia** — Province-level monthly infection and death counts from Ministry of Health Excel reports
-- **Taiwan (Tainan)** — Sub-district (BSA) level case data joined with demographic and shapefile data
 
 **Pipeline steps (OpenDengue):**
 1. Extract records for Indo-Pacific WHO regions
@@ -49,7 +48,9 @@ Aggregates and standardises dengue case data from global and regional sources at
 5. Spatial join with FAO GAUL boundaries → GeoParquet output
 6. Moran's I spatial autocorrelation analysis
 
-**Additional pipelines:** Indonesia data cleaning and wavelet analysis; Taiwan/Tainan BSA-level spatial joins
+**Additional pipeline:** Indonesia data cleaning and wavelet analysis
+
+**Reports:** Interactive Plotly HTML timelines grouped by WHO region (national, spatial, and temporal views); static Moran's I scatter and slice plots
 
 **Output:** Standardised GeoParquet and CSV tables with columns for country, province, district, date range, case counts, spatial resolution, and temporal resolution
 
@@ -61,22 +62,25 @@ Trains and evaluates spatiotemporal models for dengue prediction using outputs f
 
 **Models:**
 
-| Model | Scope | Notes |
-|---|---|---|
-| **XGBoost** | National & regional (Indonesia) | Classifier and regressor variants; K-Fold and walk-forward validation |
-| **ST-GNN** | Regional (Indonesia) | Spatiotemporal graph neural network using a region adjacency graph |
+| Model | Notes |
+|---|---|
+| **XGBoost** | Classifier and regressor variants; K-Fold and walk-forward validation |
+| **Random Forest** | Classifier variant; same validation strategies as XGBoost |
+| **ST-GAT** | Spatiotemporal graph attention network using a region adjacency graph |
 
-**Feature engineering:** temporal lags, rolling statistics, seasonal decomposition, optional land-use/LULC variables
+**Feature engineering:** temporal lags, rolling statistics, seasonal decomposition, optional land-use/LULC variables; preprocessing via `merge_envs.py` and `merge_infection_envs.py`
 
 **Hyperparameter tuning:** Optuna (Bayesian optimisation, 40–50 trials per study)
 
 **Experiment tracking:** Weights & Biases (online/offline modes)
 
-**Model interpretation:** SHAP feature importance and Integrated Gradients attribution for ST-GNN
+**Model interpretation:** SHAP feature importance (opt-in `all_xai` target) and Integrated Gradients attribution for ST-GAT
+
+**Pipeline structure:** Snakemake workflow with per-run config in `config/`; runs defined by `arch`, `version`, `validation`, and `landuse` fields; `discover_regions` checkpoint drives per-region fan-out
 
 **Computational requirements:** CUDA 12.1, 32 GB+ RAM, GPU recommended (A100/V100)
 
-**Output:** Trained model checkpoints (`best.pt`), metric JSON files, feature importance plots, and attribution heatmaps
+**Output:** Trained model checkpoints (`best.pt`), metric CSV tables, feature importance plots, and attribution heatmaps
 
 ---
 
@@ -88,26 +92,36 @@ Trains and evaluates spatiotemporal models for dengue prediction using outputs f
 │   │   ├── Snakefile
 │   │   ├── config.yaml
 │   │   ├── rules/          # AR6.smk, GWL.smk, TREAD.smk
-│   │   └── scripts/
-│   └── main/data/          # raw/, interim/, processed/
+│   │   ├── scripts/
+│   │   └── notebooks/      # spss_exploratory.ipynb
+│   ├── main/data/          # raw/, interim/, processed/
+│   └── report/             # index.qmd
 │
 ├── dengue-infection-module/
 │   ├── workflow/
 │   │   ├── Snakefile
-│   │   └── scripts/        # OpenDengue/, Indonesia/, Taiwan/
-│   └── main/
-│       ├── raw/            # OpenDengue/, IN_DENGUE/, TW_DENGUE/
-│       ├── interim/
-│       └── external/       # FAO GAUL shapefiles, Natural Earth
+│   │   ├── scripts/        # OpenDengue/ (7-step pipeline), Indonesia/
+│   │   └── notebooks/      # cleaning, EDA, and country-level notebooks
+│   ├── main/
+│   │   ├── raw/            # OpenDengue/, IN_DENGUE/, TW_DENGUE/
+│   │   ├── interim/
+│   │   └── external/       # FAO GAUL shapefiles, Natural Earth, GeoParquet
+│   └── report/             # Plotly HTML timelines (national/spatial/temporal by WHO region)
 │
-└── machine-learning-module/
-    ├── workflow/
-    │   ├── Snakefile
-    │   ├── config.yaml
-    │   └── scripts/        # XGBoost, ST-GNN, integrated gradients
-    └── main/
-        ├── data/external/  # Indonesia & Taiwan shapefiles
-        └── reports/
+├── machine-learning-module/
+│   ├── workflow/
+│   │   ├── Snakefile
+│   │   ├── config/         # per-run YAML configs
+│   │   ├── rules/          # xgboost.smk, RF.smk, stgat.smk, XAI.smk, IG.smk
+│   │   ├── scripts/        # train/tune/eval for XGBoost, RF, ST-GAT; SHAP; IG viz
+│   │   ├── scripts/OpenDengue/   # merge_envs.py, merge_infection_envs.py
+│   │   └── notebooks/      # ml_wnb.ipynb
+│   └── main/
+│       ├── data/external/  # Indonesia shapefiles
+│       └── reports/        # figures/, tables/
+│
+├── index.qmd               # Quarto project entry point
+└── _quarto.yml
 ```
 
 ## Key Dependencies
