@@ -1,8 +1,8 @@
-# Ignore all data files
-
+# Data files
 *.log
 *.tmp
 *.csv
+*.tsv
 *.sav
 *.nc
 *.shp
@@ -17,30 +17,40 @@
 *.pkl
 *.pyc
 
-
-
+# Module data and output directories
 climate-projection-module/main
+climate-projection-module/data/
 climate-projection-module/report
 zonal-statistics-module/main
+zonal-statistics-module/data/
 dengue-infection-module/main
+dengue-infection-module/data/
 dengue-infection-module/report
 machine-learning-module/main
+machine-learning-module/data/
+machine-learning-module/logs/
 machine-learning-module/report
-machine-learning-module/workflow/wandb/api-key
 
 # Snakemake
-.snakemake/
 **/.snakemake/
-climate-projection-module/workflow/.snakemake/
-dengue-infection-module/workflow/.snakemake/
-zonal-statistics-module/workflow/.snakemake/
-machine-learning-module/workflow/.snakemake/
 
+# Python
+__pycache__/
+.ipynb_checkpoints/
+.venv/
 
 # Conda / environments
 conda/
 .env/
 venv/
 
+# IDE
+.vscode/
+
+# Quarto
 /.quarto/
 **/*.quarto_ipynb
+
+# Generated artifacts
+nohup.out
+allfiles.txt
