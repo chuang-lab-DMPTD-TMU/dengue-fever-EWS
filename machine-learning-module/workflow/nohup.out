@@ -1,87 +1,0 @@
-[tune_stgat] Device: cuda  |  trials: 20  |  epochs/trial: 40  |  data fraction: 0.3
-[tune_stgat] Loaded train (59 windows) / val (10 windows) from data/processed/stgat/sea_baseline_train.pt
-[tune_stgat] Storage: sqlite:///models/stgat/sea_baseline/optuna.db  |  study: sea_baseline
-[tune_stgat] Live dashboard:  optuna-dashboard sqlite:///models/stgat/sea_baseline/optuna.db
-  0%|          | 0/20 [00:00<?, ?it/s]Best trial: 0. Best value: 0.901277:   0%|          | 0/20 [00:24<?, ?it/s]Best trial: 0. Best value: 0.901277:   5%|▌         | 1/20 [00:24<07:43, 24.41s/it]Best trial: 1. Best value: 0.844661:   5%|▌         | 1/20 [04:04<07:43, 24.41s/it]Best trial: 1. Best value: 0.844661:  10%|█         | 2/20 [04:04<41:52, 139.59s/it]Best trial: 1. Best value: 0.844661:  10%|█         | 2/20 [04:15<41:52, 139.59s/it]Best trial: 1. Best value: 0.844661:  15%|█▌        | 3/20 [04:15<22:52, 80.72s/it] Best trial: 1. Best value: 0.844661:  15%|█▌        | 3/20 [04:27<22:52, 80.72s/it]Best trial: 1. Best value: 0.844661:  20%|██        | 4/20 [04:27<14:17, 53.60s/it]Best trial: 4. Best value: 0.668253:  20%|██        | 4/20 [05:52<14:17, 53.60s/it]Best trial: 4. Best value: 0.668253:  25%|██▌       | 5/20 [05:52<16:12, 64.86s/it]Best trial: 4. Best value: 0.668253:  25%|██▌       | 5/20 [08:03<16:12, 64.86s/it]Best trial: 4. Best value: 0.668253:  30%|███       | 6/20 [08:03<20:26, 87.63s/it]Best trial: 4. Best value: 0.668253:  30%|███       | 6/20 [08:28<20:26, 87.63s/it]Best trial: 4. Best value: 0.668253:  35%|███▌      | 7/20 [08:28<14:29, 66.89s/it]Best trial: 7. Best value: 0.535594:  35%|███▌      | 7/20 [11:00<14:29, 66.89s/it]Best trial: 7. Best value: 0.535594:  40%|████      | 8/20 [11:00<18:49, 94.13s/it]Best trial: 7. Best value: 0.535594:  40%|████      | 8/20 [12:01<18:49, 94.13s/it]Best trial: 7. Best value: 0.535594:  45%|████▌     | 9/20 [12:01<15:19, 83.60s/it]Best trial: 7. Best value: 0.535594:  45%|████▌     | 9/20 [13:22<15:19, 83.60s/it]Best trial: 7. Best value: 0.535594:  50%|█████     | 10/20 [13:22<13:49, 82.99s/it]Best trial: 10. Best value: 0.527831:  50%|█████     | 10/20 [14:53<13:49, 82.99s/it]Best trial: 10. Best value: 0.527831:  55%|█████▌    | 11/20 [14:53<12:49, 85.49s/it]Best trial: 11. Best value: 0.486638:  55%|█████▌    | 11/20 [16:25<12:49, 85.49s/it]Best trial: 11. Best value: 0.486638:  60%|██████    | 12/20 [16:25<11:37, 87.24s/it]Best trial: 11. Best value: 0.486638:  60%|██████    | 12/20 [17:18<11:37, 87.24s/it]Best trial: 11. Best value: 0.486638:  65%|██████▌   | 13/20 [17:18<08:57, 76.85s/it]Best trial: 11. Best value: 0.486638:  65%|██████▌   | 13/20 [18:26<08:57, 76.85s/it]Best trial: 11. Best value: 0.486638:  70%|███████   | 14/20 [18:26<07:26, 74.42s/it]Best trial: 11. Best value: 0.486638:  70%|███████   | 14/20 [19:19<07:26, 74.42s/it]Best trial: 11. Best value: 0.486638:  75%|███████▌  | 15/20 [19:19<05:39, 67.89s/it]Best trial: 11. Best value: 0.486638:  75%|███████▌  | 15/20 [20:19<05:39, 67.89s/it]Best trial: 11. Best value: 0.486638:  80%|████████  | 16/20 [20:19<04:21, 65.46s/it]Best trial: 11. Best value: 0.486638:  80%|████████  | 16/20 [21:32<04:21, 65.46s/it]Best trial: 11. Best value: 0.486638:  85%|████████▌ | 17/20 [21:32<03:23, 67.76s/it]Best trial: 11. Best value: 0.486638:  85%|████████▌ | 17/20 [23:04<03:23, 67.76s/it]Best trial: 11. Best value: 0.486638:  90%|█████████ | 18/20 [23:04<02:29, 74.89s/it]Best trial: 11. Best value: 0.486638:  90%|█████████ | 18/20 [23:21<02:29, 74.89s/it]Best trial: 11. Best value: 0.486638:  95%|█████████▌| 19/20 [23:21<00:57, 57.61s/it]Best trial: 11. Best value: 0.486638:  95%|█████████▌| 19/20 [24:43<00:57, 57.61s/it]Best trial: 11. Best value: 0.486638: 100%|██████████| 20/20 [24:43<00:00, 65.07s/it]Best trial: 11. Best value: 0.486638: 100%|██████████| 20/20 [24:43<00:00, 74.19s/it]
-
-[trial 0] params: {'learning_rate': 0.0005730559826302675, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 2, 'gru_hidden_dim': 64, 'dropout': 0.1, 'weight_decay': 2.1642223394483857e-05}
-[trial 0] training on 17 windows (30% of train)
-[trial 0] best_val_loss=0.9013
-
-[trial 1] params: {'learning_rate': 0.00011443381987026923, 'gat_hidden_dim': 128, 'gat_heads_first_layer': 8, 'gru_hidden_dim': 128, 'dropout': 0.3, 'weight_decay': 3.2467349825012246e-05}
-[trial 1] training on 17 windows (30% of train)
-[trial 1] best_val_loss=0.8447
-
-[trial 2] params: {'learning_rate': 0.0015954006272016006, 'gat_hidden_dim': 32, 'gat_heads_first_layer': 2, 'gru_hidden_dim': 64, 'dropout': 0.3, 'weight_decay': 0.00014136950536648168}
-[trial 2] training on 17 windows (30% of train)
-[trial 2] best_val_loss=0.9008
-
-[trial 3] params: {'learning_rate': 0.0017642722708568102, 'gat_hidden_dim': 32, 'gat_heads_first_layer': 2, 'gru_hidden_dim': 128, 'dropout': 0.3, 'weight_decay': 0.00011484360673511756}
-[trial 3] training on 17 windows (30% of train)
-[trial 3] best_val_loss=0.8873
-
-[trial 4] params: {'learning_rate': 0.0024555100219657866, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 8, 'gru_hidden_dim': 128, 'dropout': 0.2, 'weight_decay': 0.0004874883745750741}
-[trial 4] training on 17 windows (30% of train)
-[trial 4] best_val_loss=0.6683
-
-[trial 5] params: {'learning_rate': 0.00045447922143710925, 'gat_hidden_dim': 128, 'gat_heads_first_layer': 8, 'gru_hidden_dim': 64, 'dropout': 0.3, 'weight_decay': 0.0002630792030305188}
-[trial 5] training on 17 windows (30% of train)
-[trial 5] best_val_loss=0.8798
-
-[trial 6] params: {'learning_rate': 0.000447837421448453, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 2, 'gru_hidden_dim': 128, 'dropout': 0.3, 'weight_decay': 9.084565276452858e-05}
-[trial 6] training on 17 windows (30% of train)
-[trial 6] best_val_loss=0.9078
-
-[trial 7] params: {'learning_rate': 0.004116479153518224, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 8, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.2612624943974268e-05}
-[trial 7] training on 17 windows (30% of train)
-[trial 7] best_val_loss=0.5356
-
-[trial 8] params: {'learning_rate': 0.0044210888347773125, 'gat_hidden_dim': 32, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 64, 'dropout': 0.3, 'weight_decay': 0.00018683887103387425}
-[trial 8] training on 17 windows (30% of train)
-[trial 8] best_val_loss=0.5722
-
-[trial 9] params: {'learning_rate': 0.002004156119393621, 'gat_hidden_dim': 128, 'gat_heads_first_layer': 2, 'gru_hidden_dim': 128, 'dropout': 0.2, 'weight_decay': 4.627707349857479e-05}
-[trial 9] training on 17 windows (30% of train)
-[trial 9] best_val_loss=0.6165
-
-[trial 10] params: {'learning_rate': 0.009663114888773753, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.0066370687020792e-05}
-[trial 10] training on 17 windows (30% of train)
-[trial 10] best_val_loss=0.5278
-
-[trial 11] params: {'learning_rate': 0.008959335196545256, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.4715698445601052e-05}
-[trial 11] training on 17 windows (30% of train)
-[trial 11] best_val_loss=0.4866
-
-[trial 12] params: {'learning_rate': 0.008180233250227785, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.0130302043064587e-05}
-[trial 12] training on 17 windows (30% of train)
-[trial 12] best_val_loss=0.6456
-
-[trial 13] params: {'learning_rate': 0.006724580917208802, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 2.05717619408278e-05}
-[trial 13] training on 17 windows (30% of train)
-[trial 13] best_val_loss=0.6095
-
-[trial 14] params: {'learning_rate': 0.00917934525910887, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 4.473857724288241e-05}
-[trial 14] training on 17 windows (30% of train)
-[trial 14] best_val_loss=0.6764
-
-[trial 15] params: {'learning_rate': 0.0038079920286962937, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.4488163790199739e-05}
-[trial 15] training on 17 windows (30% of train)
-[trial 15] best_val_loss=0.6668
-
-[trial 16] params: {'learning_rate': 0.0008091321244526946, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 6.686345784828488e-05}
-[trial 16] training on 17 windows (30% of train)
-[trial 16] best_val_loss=0.7588
-
-[trial 17] params: {'learning_rate': 0.00018799245782912265, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 2.476372514580575e-05}
-[trial 17] training on 17 windows (30% of train)
-[trial 17] best_val_loss=0.9308
-
-[trial 18] params: {'learning_rate': 0.005435457447602959, 'gat_hidden_dim': 32, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.2, 'weight_decay': 0.0009077373972882483}
-[trial 18] training on 17 windows (30% of train)
-[trial 18] best_val_loss=0.9184
-
-[trial 19] params: {'learning_rate': 0.009915080010388185, 'gat_hidden_dim': 128, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.700278360542978e-05}
-[trial 19] training on 17 windows (30% of train)
-[trial 19] best_val_loss=0.6728
-[tune_stgat] Best val_loss=0.4866 | params={'learning_rate': 0.008959335196545256, 'gat_hidden_dim': 64, 'gat_heads_first_layer': 4, 'gru_hidden_dim': 32, 'dropout': 0.1, 'weight_decay': 1.4715698445601052e-05}
-[tune_stgat] Best params → models/stgat/sea_baseline/best_params.json

@@ -1,0 +1,347 @@
+# ============================================================
+# STGAT config — SEA dengue baseline (Bayesian)
+# ============================================================
+# Architecture: BayesianGAT (spatial) → BayesianGRU (temporal) → BayesianLinear (output)
+# Inference:    Variational inference (mean-field) with KL annealing
+# Task:         Node-level dengue incidence rate regression
+#
+# Dataset : SEA_dengue_env_monthly_2011-2018.csv
+# Nodes   : 165 admin-2 units across 10 SEA countries
+# Time    : 2011-01 → 2018-12 (96 months)
+# Target  : IR (incidence rate, continuous)
+# Missing : ~10.8% of IR values absent — handled by masked loss
+#
+# Key changes from deterministic baseline:
+#   - All layer weights replaced with variational (mean + std) distributions
+#   - Loss = masked_mse (likelihood) + β × KL divergence (ELBO)
+#   - KL annealed as fraction of actual training duration (not hard epoch count)
+#   - Early stopping monitors val_mse only (not total loss, which rises during annealing)
+#   - MC sampling at val/test time for uncertainty quantification
+#
+# Snakemake usage (run_name = sea_bayesian):
+#   snakemake data/processed/stgat/sea_bayesian_train.pt --cores 4
+#   snakemake models/stgat/sea_bayesian/best.pt --cores 4 --resources gpu=1
+# ============================================================
+
+run_name: "sea_bayesian"
+
+arch:       stgat_bayesian
+version:    "0001"
+experiment: "sea-bayesian"
+
+
+# ---------------------------------------------------------------------------
+# Sequence settings
+# (unchanged from deterministic baseline)
+# ---------------------------------------------------------------------------
+sequence:
+  lookback_steps: 12    # months of history per input window
+  target_horizon:  1
+  stride:          1
+
+
+# ---------------------------------------------------------------------------
+# Feature groups
+# (unchanged from deterministic baseline)
+# ---------------------------------------------------------------------------
+features:
+  env_vars:
+    - precipitation_sum
+    - total_precipitation_sum_mean
+    - temperature_2m_mean
+    - temperature_2m_max_mean
+    - temperature_2m_min_mean
+    - potential_evaporation_sum_mean
+    - total_evaporation_sum_mean
+    - evaporation_from_bare_soil_sum_mean
+    - evaporation_from_open_water_surfaces_excluding_oceans_sum_mean
+    - evaporation_from_the_top_of_canopy_sum_mean
+    - evaporation_from_vegetation_transpiration_sum_mean
+    - LST_Day_1km_mean
+    - LST_Night_1km_mean
+    - NDVI_mean
+    - EVI_mean
+
+  population_vars:
+    - population_sum
+
+  lag_steps: [1, 2, 3]   # applied to env_vars during preprocessing
+  use_landuse: true       # include LC_Type1_pct_class* columns
+
+
+# ---------------------------------------------------------------------------
+# Target
+# (unchanged from deterministic baseline)
+# ---------------------------------------------------------------------------
+target:
+  task:          regression
+  column:        IR
+
+  log_transform: true       # log1p(IR) for training; expm1 for reporting
+  mask_missing:  true       # NaN IR excluded from loss, kept for spatial context
+
+
+# ---------------------------------------------------------------------------
+# Train / val / test split
+# (unchanged from deterministic baseline)
+# ---------------------------------------------------------------------------
+split:
+  test_year:    2018         # 12 held-out months
+  val_fraction: 0.15         # last 15% of pre-2018 sequences
+
+
+# ---------------------------------------------------------------------------
+# Bayesian inference settings
+# (new section — core of what makes this a BNN)
+# ---------------------------------------------------------------------------
+bayesian:
+  enabled:   true
+  inference: variational     # variational | mc_dropout | deep_ensemble
+
+  # --- Prior: belief about weights before seeing any data ---
+  prior:
+    type:  gaussian          # gaussian | laplace | mixture_of_gaussians
+    mu:    0.0               # weights expected to be centered at zero
+    sigma: 1.0               # fairly diffuse — allows weights to vary within ~±1-2
+
+    # Uncomment below to use spike-and-slab prior instead (encourages sparsity):
+    # type:   mixture_of_gaussians
+    # pi:     0.5            # mixing coefficient between spike and slab
+    # sigma1: 1.0            # slab — wide component, allows large weights
+    # sigma2: 0.001          # spike — narrow component, pushes most weights near zero
+
+  # --- Posterior: learned distribution over weights after training ---
+  posterior:
+    type:     mean_field     # mean_field (independent weights) | full_rank (correlated, expensive)
+    rho_init: -3.0           # initial log-softplus rho → std ≈ softplus(-3) ≈ 0.049
+                             # small initial std means weights start nearly deterministic
+                             # and uncertainty grows during training — aids stability
+    mu_init:  normal         # initialise posterior means: normal | xavier | kaiming
+
+  # --- KL divergence: how strongly to regularise toward the prior ---
+  kl:
+    weight:          0.1     # β — start conservatively; tune via sweep
+                             # too high → posterior collapse (ignores data)
+                             # too low  → deterministic behaviour, overconfident
+    annealing:       true    # ramp β from 0 → weight over anneal_fraction of training
+                             # prevents KL overwhelming MSE before weights have learned
+    anneal_fraction: 0.25    # fraction of *actual* training duration for annealing
+                             # e.g. if early stopping fires at epoch 80: ramps over ep 0-20
+                             # decoupled from hard epoch counts — safe with early stopping
+    scaling:         batch   # divide KL by batch size to match MSE scale
+                             # batch | dataset
+
+  # --- Monte Carlo sampling: how many stochastic forward passes ---
+  mc_samples:
+    train: 1                 # 1 sample sufficient during training (reparameterisation trick
+                             # gives unbiased gradient; more samples = slower, no real benefit)
+    val:   20                # more passes at val for stable uncertainty estimates
+    test:  50                # most passes at test for reliable prediction intervals
+
+  # --- Which modules use variational (Bayesian) weights ---
+  bayesian_layers:
+    gat:    true             # BayesianGATConv replaces GATConv
+    gru:    true             # variational GRUCell replaces standard GRUCell
+    output: true             # BayesianLinear replaces Linear in output MLP
+                             # set gat/gru to false and output to true for a cheaper
+                             # partial-Bayesian version if compute is constrained
+
+
+# ---------------------------------------------------------------------------
+# Model architecture
+# ---------------------------------------------------------------------------
+model:
+  gat:
+    num_layers:  2
+    hidden_dim:  64
+    heads:       [4, 1]      # last entry must be 1 (averaged, not concatenated)
+    dropout:     0.2
+    residual:    true
+    activation:  elu
+    variational: true        # use BayesianGATConv (set by bayesian.bayesian_layers.gat)
+
+  gru:
+    num_layers:   1
+    hidden_dim:   64
+    dropout:      0.0
+    bidirectional: false
+    variational:  true       # use variational GRUCell (set by bayesian.bayesian_layers.gru)
+
+  projection:
+    enabled: false           # project GAT output → GRU input when dims differ
+
+  output:
+    hidden_dim:  32
+    dropout:     0.1
+    variational: true        # use BayesianLinear (set by bayesian.bayesian_layers.output)
+
+
+# ---------------------------------------------------------------------------
+# Training
+# ---------------------------------------------------------------------------
+training:
+  epochs:        200
+  learning_rate: 1.0e-3
+  weight_decay:  1.0e-4
+  gradient_clip: 1.0
+
+  optimizer: adam
+
+  scheduler:
+    type: plateau
+    plateau:
+      patience:  10
+      factor:    0.5
+      min_lr:    1.0e-6
+    cosine:
+      t_max:    50
+      eta_min:  1.0e-6
+    step:
+      step_size: 30
+      gamma:     0.5
+
+  early_stopping:
+    patience:   25
+    min_delta:  1.0e-4
+    monitor:    val_mse      # CHANGED from val_loss — monitors MSE only, not total ELBO
+                             # total loss rises during KL annealing even when model is
+                             # learning correctly — stopping on it would fire too early
+    warmup_epochs: 0         # uses 
+
+  random_state: 64
+
+
+# ---------------------------------------------------------------------------
+# Loss function — ELBO = masked_mse (likelihood) + β × KL (regularisation)
+# ---------------------------------------------------------------------------
+loss:
+  regression:
+    type:        masked_mse   # masked_mse | masked_mae | masked_huber
+    huber_delta: 1.0          # only used if type = masked_huber
+
+  # ELBO loss — combines likelihood and KL divergence
+  elbo:
+    likelihood:  masked_mse   # must match regression.type
+    kl_weight:   0.1          # mirrors bayesian.kl.weight
+                              # defined here separately so loss fn and bayesian module
+                              # remain independently configurable
+    free_bits:   0.0          # minimum KL per dimension before penalty is applied
+                              # prevents posterior collapse during early training
+                              # increase to ~0.5 only if collapse is observed
+
+  classification:
+    type:        cross_entropy
+    focal_gamma: 2.0
+
+
+# ---------------------------------------------------------------------------
+# Uncertainty output — what to compute and report from MC samples at test time
+# ---------------------------------------------------------------------------
+uncertainty_output:
+  predictive_mean:  true     # average prediction across MC samples — the actual forecast
+  predictive_std:   true     # std across MC samples — total uncertainty
+  epistemic:        true     # variance of per-sample means — model uncertainty
+                             # high where training data was sparse or missing
+  aleatoric:        false    # data noise uncertainty — requires heteroscedastic output head
+                             # leave false unless adding a variance prediction head
+  save_samples:     false    # save all raw MC sample predictions to disk
+                             # useful for debugging; large files (165 nodes × T × 50 samples)
+  predict_interval: 0.95     # credible interval width reported at test time
+
+
+# ---------------------------------------------------------------------------
+# Optuna hyperparameter sweep
+# ---------------------------------------------------------------------------
+sweep_config:
+  method: bayes              # bayes | random | grid
+
+  parameters:
+    # Sequence
+    lookback_steps:
+      values: [6, 9, 12]
+
+    # GAT
+    gat_hidden_dim:
+      values: [32, 64, 128]
+    gat_num_layers:
+      values: [1, 2, 3]
+    gat_heads_layer1:
+      values: [2, 4, 8]
+    gat_heads_layer2:
+      values: [2, 4]
+    gat_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.4
+    gat_residual:
+      values: [true, false]
+
+    # GRU
+    gru_hidden_dim:
+      values: [32, 64, 128]
+    gru_num_layers:
+      values: [1, 2]
+    gru_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.3
+
+    # Output head
+    output_hidden_dim:
+      values: [16, 32, 64]
+    output_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.3
+
+    # Optimiser
+    learning_rate:
+      distribution: log_uniform_values
+      min: 1.0e-4
+      max: 1.0e-2
+    weight_decay:
+      distribution: log_uniform_values
+      min: 1.0e-5
+      max: 1.0e-3
+    gradient_clip:
+      values: [0.5, 1.0, 2.0]
+
+    # Scheduler
+    scheduler_type:
+      values: [plateau, cosine, none]
+    plateau_patience:
+      values: [5, 10, 15]
+    cosine_t_max:
+      values: [30, 50, 100]
+
+    # --- Bayesian-specific sweep parameters (new) ---
+
+    # KL weight: most important Bayesian hyperparameter
+    # searched on log scale — effect varies dramatically across orders of magnitude
+    kl_weight:
+      distribution: log_uniform_values
+      min: 1.0e-4
+      max: 1.0
+
+    # Annealing fraction: what proportion of actual training duration to ramp over
+    # replaces hard anneal_epochs — safe to sweep alongside early stopping
+    kl_anneal_fraction:
+      values: [0.10, 0.25, 0.40]
+
+    # Prior width: wider = more regularisation freedom, harder to train
+    prior_sigma:
+      distribution: log_uniform_values
+      min: 0.1
+      max: 2.0
+
+    # Initial posterior std: more negative = more deterministic start = more stable
+    rho_init:
+      values: [-4.0, -3.0, -2.0]
+
+    # MC samples during training: more = better gradients, slower
+    mc_samples_train:
+      values: [1, 3, 5]
+
+    # Free bits: increase only if posterior collapse is observed
+    free_bits:
+      values: [0.0, 0.1, 0.5]

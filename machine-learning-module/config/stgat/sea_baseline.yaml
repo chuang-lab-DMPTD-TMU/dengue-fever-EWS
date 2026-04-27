@@ -1,0 +1,217 @@
+# ============================================================
+# STGAT config — SEA dengue baseline
+# ============================================================
+# Architecture: GAT (spatial) → GRU (temporal) → Linear (output)
+# Task:         Node-level dengue incidence rate regression
+#
+# Dataset : SEA_dengue_env_monthly_2011-2018.csv
+# Nodes   : 165 admin-2 units across 10 SEA countries
+# Time    : 2011-01 → 2018-12 (96 months)
+# Target  : IR (incidence rate, continuous)
+# Missing : ~10.8% of IR values absent — handled by masked loss
+#
+# Snakemake usage (run_name = sea_baseline):
+#   snakemake data/processed/stgat/sea_baseline_train.pt --cores 4
+#   snakemake models/stgat/sea_baseline/best.pt --cores 4 --resources gpu=1
+# ============================================================
+
+run_name: "sea_baseline"
+
+arch:       stgat
+version:    "0001"
+experiment: "sea-baseline"
+
+
+# ---------------------------------------------------------------------------
+# Sequence settings
+# ---------------------------------------------------------------------------
+sequence:
+  lookback_steps: 12    # months of history per input window
+  target_horizon:  1
+  stride:          1
+
+
+# ---------------------------------------------------------------------------
+# Feature groups
+# ---------------------------------------------------------------------------
+features:
+  env_vars:
+    - precipitation_sum
+    - total_precipitation_sum_mean
+    - temperature_2m_mean
+    - temperature_2m_max_mean
+    - temperature_2m_min_mean
+    - potential_evaporation_sum_mean
+    - total_evaporation_sum_mean
+    - evaporation_from_bare_soil_sum_mean
+    - evaporation_from_open_water_surfaces_excluding_oceans_sum_mean
+    - evaporation_from_the_top_of_canopy_sum_mean
+    - evaporation_from_vegetation_transpiration_sum_mean
+    - LST_Day_1km_mean
+    - LST_Night_1km_mean
+    - NDVI_mean
+    - EVI_mean
+
+  population_vars:
+    - population_sum
+
+  lag_steps: [1, 2, 3]   # applied to env_vars during preprocessing
+  use_landuse: true       # include LC_Type1_pct_class* columns
+
+
+# ---------------------------------------------------------------------------
+# Target
+# ---------------------------------------------------------------------------
+target:
+  task:          regression
+  column:        IR
+
+  log_transform: true       # log1p(IR) for training; expm1 for reporting
+  mask_missing:  true       # NaN IR excluded from loss, kept for spatial context
+
+
+# ---------------------------------------------------------------------------
+# Train / val / test split
+# ---------------------------------------------------------------------------
+split:
+  test_year:    2018         # 12 held-out months
+  val_fraction: 0.15         # last 15% of pre-2018 sequences
+
+
+# ---------------------------------------------------------------------------
+# Model architecture
+# ---------------------------------------------------------------------------
+model:
+  gat:
+    num_layers: 2
+    hidden_dim: 64
+    heads: [4, 1]            # last entry must be 1 (averaged, not concatenated)
+    dropout: 0.2
+    residual: true
+    activation: elu
+
+  gru:
+    num_layers: 1
+    hidden_dim: 64
+    dropout: 0.0
+    bidirectional: false
+
+  projection:
+    enabled: false           # project GAT output → GRU input when dims differ
+
+  output:
+    hidden_dim: 32
+    dropout: 0.1
+
+
+# ---------------------------------------------------------------------------
+# Training
+# ---------------------------------------------------------------------------
+training:
+  epochs:        200
+  learning_rate: 1.0e-3
+  weight_decay:  1.0e-4
+  gradient_clip: 1.0
+
+  optimizer: adam
+
+  scheduler:
+    type: plateau
+    plateau:
+      patience:  10
+      factor:    0.5
+      min_lr:    1.0e-6
+    cosine:
+      t_max:    50
+      eta_min:  1.0e-6
+    step:
+      step_size: 30
+      gamma:     0.5
+
+  early_stopping:
+    patience:   25
+    min_delta:  1.0e-4
+    monitor:    val_loss
+
+  random_state: 64
+
+
+# ---------------------------------------------------------------------------
+# Loss function
+# ---------------------------------------------------------------------------
+loss:
+  regression:
+    type:        masked_mse   # masked_mse | masked_mae | masked_huber
+    huber_delta: 1.0
+
+  classification:
+    type:        cross_entropy
+    focal_gamma: 2.0
+
+
+# ---------------------------------------------------------------------------
+# Optuna hyperparameter sweep
+# (read by tune_stgat.py from the top-level sweep_config key)
+# ---------------------------------------------------------------------------
+sweep_config:
+  method: bayes              # bayes | random | grid
+  
+
+  parameters:
+    # Sequence
+    lookback_steps:
+      values: [6, 9, 12]
+
+    # GAT
+    gat_hidden_dim:
+      values: [32, 64, 128]
+    gat_num_layers:
+      values: [1, 2, 3]
+    gat_heads_layer1:
+      values: [2, 4, 8]
+    gat_heads_layer2:
+      values: [2, 4]
+    gat_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.4
+    gat_residual:
+      values: [true, false]
+
+    # GRU
+    gru_hidden_dim:
+      values: [32, 64, 128]
+    gru_num_layers:
+      values: [1, 2]
+    gru_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.3
+
+    # Output head
+    output_hidden_dim:
+      values: [16, 32, 64]
+    output_dropout:
+      distribution: uniform
+      min: 0.0
+      max: 0.3
+
+    # Optimiser
+    learning_rate:
+      distribution: log_uniform_values
+      min: 1.0e-4
+      max: 1.0e-2
+    weight_decay:
+      distribution: log_uniform_values
+      min: 1.0e-5
+      max: 1.0e-3
+    gradient_clip:
+      values: [0.5, 1.0, 2.0]
+
+    # Scheduler
+    scheduler_type:
+      values: [plateau, cosine, none]
+    plateau_patience:
+      values: [5, 10, 15]
+    cosine_t_max:
+      values: [30, 50, 100]

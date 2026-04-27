@@ -1,0 +1,18 @@
+# ============================================================
+# Master Snakemake config
+# ============================================================
+# XGBoost / RF per-region runs — add entries here as needed.
+# STGAT runs are configured separately via config/stgat/*.yaml
+# and targeted directly, e.g.:
+#   snakemake models/stgat/sea_baseline/best_params.json --cores 4 --resources gpu=1
+# ============================================================
+
+runs: []
+
+# GPU settings
+use_gpu: true
+cuda_visible_devices: "0"
+
+# Optuna defaults (overridable per run or via --config)
+optuna:
+  n_trials: 40
