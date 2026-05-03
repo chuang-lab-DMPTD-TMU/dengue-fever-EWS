@@ -88,13 +88,11 @@ model:
     heads: [4, 1]            # last entry must be 1 (averaged, not concatenated)
     dropout: 0.2
     residual: true
-    activation: elu
 
   gru:
     num_layers: 1
     hidden_dim: 64
     dropout: 0.0
-    bidirectional: false
 
   projection:
     enabled: false           # project GAT output → GRU input when dims differ
