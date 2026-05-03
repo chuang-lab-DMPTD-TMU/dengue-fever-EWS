@@ -148,6 +148,14 @@ def apply_trial_params(base_cfg: dict, trial: optuna.Trial) -> dict:
     if "gradient_clip" in s:
         cfg["training"]["gradient_clip"] = s["gradient_clip"]
 
+    # --- Projection ---
+    if "projection_enabled" in s:
+        cfg["model"]["projection"]["enabled"] = s["projection_enabled"]
+
+    # --- Optimiser ---
+    if "optimizer" in s:
+        cfg["training"]["optimizer"] = s["optimizer"]
+
     # --- Scheduler ---
     if "scheduler_type" in s:
         cfg["training"]["scheduler"]["type"] = s["scheduler_type"]
@@ -155,6 +163,23 @@ def apply_trial_params(base_cfg: dict, trial: optuna.Trial) -> dict:
         cfg["training"]["scheduler"]["plateau"]["patience"] = s["plateau_patience"]
     if "cosine_t_max" in s:
         cfg["training"]["scheduler"]["cosine"]["t_max"] = s["cosine_t_max"]
+
+    # --- Early stopping: derive patience from scheduler so LR can change twice ---
+    sched_type = cfg["training"]["scheduler"]["type"]
+    if sched_type == "plateau":
+        cfg["training"]["early_stopping"]["patience"] = (
+            2 * cfg["training"]["scheduler"]["plateau"]["patience"]
+        )
+    elif sched_type == "cosine":
+        cfg["training"]["early_stopping"]["patience"] = (
+            cfg["training"]["scheduler"]["cosine"]["t_max"]
+        )
+
+    # --- Loss ---
+    if "loss_type" in s:
+        cfg["loss"]["regression"]["type"] = s["loss_type"]
+    if "huber_delta" in s:
+        cfg["loss"]["regression"]["huber_delta"] = s["huber_delta"]
 
     # --- Target ---
     if "log_transform_target" in s:

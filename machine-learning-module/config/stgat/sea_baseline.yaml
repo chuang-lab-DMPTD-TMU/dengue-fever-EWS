@@ -194,7 +194,13 @@ sweep_config:
       min: 0.0
       max: 0.3
 
+    # Architecture
+    projection_enabled:
+      values: [true, false]
+
     # Optimiser
+    optimizer:
+      values: [adam, adamw]
     learning_rate:
       distribution: log_uniform_values
       min: 1.0e-4
@@ -207,9 +213,17 @@ sweep_config:
       values: [0.5, 1.0, 2.0]
 
     # Scheduler
+    # early_stopping.patience is not searched directly — it is derived as
+    # 2 * plateau_patience (plateau) or cosine_t_max (cosine) at trial time.
     scheduler_type:
       values: [plateau, cosine, none]
     plateau_patience:
       values: [5, 10, 15]
     cosine_t_max:
       values: [30, 50, 100]
+
+    # Loss
+    loss_type:
+      values: [masked_mse, masked_mae, masked_huber]
+    huber_delta:
+      values: [0.5, 1.0, 2.0]

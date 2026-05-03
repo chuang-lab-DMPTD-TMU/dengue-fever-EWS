@@ -705,10 +705,27 @@ def apply_best_params(cfg: dict, params: dict) -> None:
     if "weight_decay"      in params: tr["weight_decay"]     = params["weight_decay"]
     if "gradient_clip"     in params: tr["gradient_clip"]    = params["gradient_clip"]
 
+    # Projection
+    if "projection_enabled" in params: cfg["model"]["projection"]["enabled"]     = params["projection_enabled"]
+
+    # Optimiser
+    if "optimizer"         in params: tr["optimizer"]                            = params["optimizer"]
+
     # Scheduler
     if "scheduler_type"    in params: tr["scheduler"]["type"]                    = params["scheduler_type"]
     if "plateau_patience"  in params: tr["scheduler"]["plateau"]["patience"]     = params["plateau_patience"]
     if "cosine_t_max"      in params: tr["scheduler"]["cosine"]["t_max"]         = params["cosine_t_max"]
+
+    # Early stopping: derive patience from scheduler so LR can change twice
+    sched_type = tr["scheduler"]["type"]
+    if sched_type == "plateau":
+        tr["early_stopping"]["patience"] = 2 * tr["scheduler"]["plateau"]["patience"]
+    elif sched_type == "cosine":
+        tr["early_stopping"]["patience"] = tr["scheduler"]["cosine"]["t_max"]
+
+    # Loss
+    if "loss_type"         in params: cfg["loss"]["regression"]["type"]          = params["loss_type"]
+    if "huber_delta"       in params: cfg["loss"]["regression"]["huber_delta"]   = params["huber_delta"]
 
     # Target
     if "log_transform_target" in params: cfg["target"]["log_transform"]          = params["log_transform_target"]
