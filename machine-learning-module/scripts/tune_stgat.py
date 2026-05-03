@@ -49,6 +49,7 @@ from train_stgat import (
     build_optimizer,
     build_scheduler,
     EarlyStopping,
+    apply_best_params,
 )
 
 
@@ -71,11 +72,43 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--storage",            default=None,
                    help="Optuna storage URL, e.g. sqlite:///models/stgat/sea_baseline/optuna.db "
                         "(defaults to sqlite next to --output)")
+    p.add_argument("--update-config",      action="store_true",
+                   help="Write best params back into the config YAML after the sweep")
     p.add_argument("--device",             default="cuda" if torch.cuda.is_available() else "cpu")
     return p.parse_args()
 
 
 # load_batches is imported from train_stgat above.
+
+
+# ---------------------------------------------------------------------------
+# Write best params back into the config YAML (preserving comments)
+# ---------------------------------------------------------------------------
+
+def write_best_params_to_config(config_path: str, best_params: dict) -> None:
+    from ruamel.yaml import YAML
+    from ruamel.yaml.comments import CommentedSeq
+
+    ryaml = YAML()
+    ryaml.preserve_quotes = True
+
+    with open(config_path) as fh:
+        cfg = ryaml.load(fh)
+
+    apply_best_params(cfg, best_params)
+
+    # apply_best_params replaces gat.heads with a plain Python list.
+    # Restore ruamel flow style so it round-trips as [4, 1] not a block sequence.
+    heads = cfg["model"]["gat"].get("heads")
+    if heads is not None and not isinstance(heads, CommentedSeq):
+        flow = CommentedSeq(heads)
+        flow.fa.set_flow_style()
+        cfg["model"]["gat"]["heads"] = flow
+
+    with open(config_path, "w") as fh:
+        ryaml.dump(cfg, fh)
+
+    print(f"[tune_stgat] Config updated with best params → {config_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -331,6 +364,9 @@ def main():
     with open(out, "w") as fh:
         json.dump({"best_val_loss": best_loss, **best_params}, fh, indent=2)
     print(f"[tune_stgat] Best params → {out}")
+
+    if args.update_config:
+        write_best_params_to_config(args.config, best_params)
 
 
 if __name__ == "__main__":
