@@ -119,7 +119,7 @@ rule train_stgat:
         best_params = "models/stgat/{run_name}/best_params.json"
     output:
         checkpoint = "models/stgat/{run_name}/best.pt",
-        metrics    = "reports/stgat/{run_name}/train_metrics.json"
+        metrics    = "report/stgat/{run_name}/train_metrics.json"
     log:
         "logs/stgat/{run_name}/train.log"
     params:
@@ -155,14 +155,14 @@ rule train_stgat:
 rule eval_stgat:
     """
     Evaluate a trained STGAT checkpoint on the held-out test set.
-    Writes a JSON of test metrics to reports/stgat/{run_name}/.
+    Writes a JSON of test metrics to report/stgat/{run_name}/.
     """
     input:
         checkpoint  = "models/stgat/{run_name}/best.pt",
         test_data   = "data/processed/stgat/{run_name}_test.pt",
         config_file = "config/stgat/{run_name}.yaml"
     output:
-        metrics = "reports/stgat/{run_name}/test_metrics.json"
+        metrics = "report/stgat/{run_name}/test_metrics.json"
     log:
         "logs/stgat/{run_name}/eval.log"
     params:
@@ -206,13 +206,13 @@ rule plot_timecurves_stgat:
         test_data   = "data/processed/stgat/{run_name}_test.pt",
         config_file = "config/stgat/{run_name}.yaml"
     output:
-        plot = "reports/stgat/{run_name}/timecurves_ir_seed{seed}.png"
+        plot = "report/stgat/{run_name}/timecurves_ir_seed{seed}.png"
     log:
         "logs/stgat/{run_name}/timecurves_seed{seed}.log"
     params:
         cuda_device = config.get("cuda_visible_devices", "0"),
         device      = "cuda" if config.get("use_gpu", True) else "cpu",
-        out_dir     = "reports/stgat/{run_name}"
+        out_dir     = "report/stgat/{run_name}"
     threads: 2
     resources:
         gpu    = 1,

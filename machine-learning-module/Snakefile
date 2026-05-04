@@ -34,7 +34,6 @@ include: "rules/xgboost.smk"
 include: "rules/RF.smk"
 include: "rules/stgat.smk"
 include: "rules/bayes_stgat.smk"
-include: "rules/XAI.smk"
 include: "rules/IG.smk"
 
 
@@ -83,6 +82,13 @@ def _regions_for_study(wc):
         return [line.strip() for line in fh if line.strip()]
 
 
+_plot_targets = [
+    f"report/stgat/{config['run_name']}/timecurves_ir_seed{seed}.png"
+    for seed in config.get("seeds", [42])
+    if config.get("plot_timecurves")
+]
+
+
 # ---------------------------------------------------------------------------
 # rule all — core pipeline targets (no XAI)
 # Run `snakemake all_xai` to also produce SHAP outputs.
@@ -91,38 +97,9 @@ def _regions_for_study(wc):
 rule all:
     default_target: True
     input:
-        expand(
-            "reports/tables/{study}_national_results.csv",
-            study = _all_studies()
-        ),
-        expand(
-            "reports/tables/{experiment}_comparison.csv",
-            experiment = _all_experiments()
-        )
+        expand("report/tables/{study}_national_results.csv", study=_all_studies()),
+        expand("report/tables/{experiment}_comparison.csv", experiment=_all_experiments()),
+        _plot_targets
 
 
-# ---------------------------------------------------------------------------
-# rule all_xai — opt-in target that also runs SHAP for every study/region
-# ---------------------------------------------------------------------------
 
-def _all_shap_flags(wildcards):
-    """Input function so Snakemake waits for the checkpoint before expanding."""
-    flags = []
-    for study in _all_studies():
-        wc = type("W", (), {"study": study})()
-        for region in _regions_for_study(wc):
-            flags.append(f".snakemake/flags/{study}/{region}_shap.done")
-    return flags
-
-
-rule all_xai:
-    input:
-        expand(
-            "reports/tables/{study}_national_results.csv",
-            study = _all_studies()
-        ),
-        expand(
-            "reports/tables/{experiment}_comparison.csv",
-            experiment = _all_experiments()
-        ),
-        _all_shap_flags

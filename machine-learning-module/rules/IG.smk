@@ -9,7 +9,7 @@
 # Depends on the trained checkpoint produced by train_stgat (stgat.smk).
 #
 # Run:
-#   snakemake reports/stgat/sea_baseline/ig_feature_importance.png \
+#   snakemake report/stgat/sea_baseline/ig_feature_importance.png \
 #       --cores 4 --resources gpu=1
 #
 #   Or trigger all IG outputs at once via rule all_ig below.
@@ -26,14 +26,14 @@ rule viz_ig:
         test_data   = "data/processed/stgat/{run_name}_test.pt",
         config_file = "config/stgat/{run_name}.yaml"
     output:
-        feat_plot    = "reports/stgat/{run_name}/ig_feature_importance.png",
-        temporal_plot= "reports/stgat/{run_name}/ig_temporal_heatmap.png",
-        node_plot    = "reports/stgat/{run_name}/ig_node_importance.png",
-        raw_attrs    = "reports/stgat/{run_name}/ig_attributions.pt"
+        feat_plot    = "report/stgat/{run_name}/ig_feature_importance.png",
+        temporal_plot= "report/stgat/{run_name}/ig_temporal_heatmap.png",
+        node_plot    = "report/stgat/{run_name}/ig_node_importance.png",
+        raw_attrs    = "report/stgat/{run_name}/ig_attributions.pt"
     log:
         "logs/stgat/{run_name}/viz_ig.log"
     params:
-        out_dir     = "reports/stgat/{run_name}",
+        out_dir     = "report/stgat/{run_name}",
         ig_steps    = config.get("ig_steps", 50),
         top_k_feat  = config.get("ig_top_k_feat",  20),
         top_k_nodes = config.get("ig_top_k_nodes", 30),
@@ -75,7 +75,7 @@ def _all_ig_outputs(wildcards):
         for p in _glob.glob("config/stgat/*.yaml")
     ]
     return [
-        f"reports/stgat/{rn}/ig_feature_importance.png"
+        f"report/stgat/{rn}/ig_feature_importance.png"
         for rn in run_names
     ]
 

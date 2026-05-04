@@ -19,7 +19,7 @@ checkpoint discover_regions:
     the DAG after the region list is known.
     """
     output:
-        region_list = "reports/tables/{study}_regions.txt"
+        region_list = "report/tables/{study}_regions.txt"
     params:
         run_cfg = lambda wc: _run_for_study(wc.study)
     script:
@@ -38,9 +38,9 @@ rule tune_xgboost:
     and those fixed params are written directly.
     """
     input:
-        region_list = "reports/tables/{study}_regions.txt"
+        region_list = "report/tables/{study}_regions.txt"
     output:
-        params_csv = "reports/tables/{study}/{region}_params.csv"
+        params_csv = "report/tables/{study}/{region}_params.csv"
     log:
         "logs/{study}/{region}_tune.log"
     params:
@@ -60,7 +60,7 @@ rule train_xgboost:
     Train the final XGBoost model for one (study, region).
     """
     input:
-        params_csv = "reports/tables/{study}/{region}_params.csv"
+        params_csv = "report/tables/{study}/{region}_params.csv"
     output:
         model = "models/xgboost/{study}/{region}.json"
     log:
@@ -84,7 +84,7 @@ rule eval_xgboost:
     input:
         model = "models/xgboost/{study}/{region}.json"
     output:
-        results_csv = "reports/tables/{study}/{region}_results.csv"
+        results_csv = "report/tables/{study}/{region}_results.csv"
     log:
         "logs/{study}/{region}_evaluate.log"
     params:

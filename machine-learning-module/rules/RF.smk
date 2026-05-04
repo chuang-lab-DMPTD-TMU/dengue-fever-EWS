@@ -22,9 +22,9 @@ rule tune_rf:
     and those fixed params are written directly.
     """
     input:
-        region_list = "reports/tables/{study}_regions.txt"
+        region_list = "report/tables/{study}_regions.txt"
     output:
-        params_csv = "reports/tables/{study}/{region}_rf_params.csv"
+        params_csv = "report/tables/{study}/{region}_rf_params.csv"
     log:
         "logs/{study}/{region}_rf_tune.log"
     params:
@@ -44,7 +44,7 @@ rule train_rf:
     Saves a joblib file.
     """
     input:
-        params_csv = "reports/tables/{study}/{region}_rf_params.csv"
+        params_csv = "report/tables/{study}/{region}_rf_params.csv"
     output:
         model = "models/rf/{study}/{region}.joblib"
     log:
@@ -67,7 +67,7 @@ rule eval_rf:
     input:
         model = "models/rf/{study}/{region}.joblib"
     output:
-        results_csv = "reports/tables/{study}/{region}_rf_results.csv"
+        results_csv = "report/tables/{study}/{region}_rf_results.csv"
     log:
         "logs/{study}/{region}_rf_evaluate.log"
     params:
@@ -88,12 +88,12 @@ rule aggregate_rf_results:
     """
     input:
         csvs = lambda wc: expand(
-            "reports/tables/{study}/{region}_rf_results.csv",
+            "report/tables/{study}/{region}_rf_results.csv",
             study  = wc.study,
             region = _regions_for_study(wc)
         )
     output:
-        summary = "reports/tables/{study}_rf_national_results.csv"
+        summary = "report/tables/{study}_rf_national_results.csv"
     run:
         import pandas as pd
         dfs = [pd.read_csv(f) for f in input.csvs]

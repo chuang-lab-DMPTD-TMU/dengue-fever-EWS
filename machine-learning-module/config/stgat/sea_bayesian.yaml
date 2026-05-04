@@ -28,11 +28,12 @@ run_name: "sea_bayesian"
 arch:       stgat_bayesian
 version:    "0001"
 experiment: "sea-bayesian"
+plot_timecurves: true
+seeds: [67]
 
 
 # ---------------------------------------------------------------------------
 # Sequence settings
-# (unchanged from deterministic baseline)
 # ---------------------------------------------------------------------------
 sequence:
   lookback_steps: 12    # months of history per input window
@@ -42,7 +43,6 @@ sequence:
 
 # ---------------------------------------------------------------------------
 # Feature groups
-# (unchanged from deterministic baseline)
 # ---------------------------------------------------------------------------
 features:
   env_vars:

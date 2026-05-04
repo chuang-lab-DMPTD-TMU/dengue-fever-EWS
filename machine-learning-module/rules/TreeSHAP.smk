@@ -19,7 +19,7 @@ rule shap_analysis:
     """
     input:
         model   = "models/xgboost/{study}/{region}.json",
-        results = "reports/tables/{study}/{region}_results.csv"
+        results = "report/tables/{study}/{region}_results.csv"
     output:
         flag = ".snakemake/flags/{study}/{region}_shap.done"
     log:

@@ -91,7 +91,7 @@ rule train_bayes_stgat:
         best_params = "models/stgat/{run_name}/bayes_best_params.json"
     output:
         checkpoint = "models/stgat/{run_name}/bayes_best.pt",
-        metrics    = "reports/stgat/{run_name}/bayes_train_metrics.json"
+        metrics    = "report/stgat/{run_name}/bayes_train_metrics.json"
     log:
         "logs/stgat/{run_name}/bayes_train.log"
     params:
@@ -128,7 +128,7 @@ rule eval_bayes_stgat:
     """
     Evaluate a trained BayesianSTGAT on the held-out test set.
     Runs mc_samples.test (default 50) stochastic forward passes per window.
-    Reports: predictive_mean, predictive_std (epistemic), 95% credible interval,
+    report: predictive_mean, predictive_std (epistemic), 95% credible interval,
     and standard regression metrics in both log-space and original IR space.
     """
     input:
@@ -136,7 +136,7 @@ rule eval_bayes_stgat:
         test_data   = "data/processed/stgat/{run_name}_test.pt",
         config_file = "config/stgat/{run_name}.yaml"
     output:
-        metrics = "reports/stgat/{run_name}/bayes_test_metrics.json"
+        metrics = "report/stgat/{run_name}/bayes_test_metrics.json"
     log:
         "logs/stgat/{run_name}/bayes_eval.log"
     params:
